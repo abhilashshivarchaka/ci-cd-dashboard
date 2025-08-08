@@ -10,11 +10,6 @@ jobs:
   build-and-test:
     runs-on: ubuntu-latest
 
-    services:
-      docker:
-        image: docker:20.10.7
-        options: --privileged
-
     steps:
       - name: 📥 Checkout code
         uses: actions/checkout@v3
@@ -27,6 +22,22 @@ jobs:
 
       - name: 🐳 Build Frontend Docker Image
         run: docker build -t frontend-ui ./frontend
+
+      # 🔐 STEP 3: Login to DockerHub
+      - name: 🔐 Login to DockerHub
+        run: echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
+
+      # 🐳 STEP 3: Push Backend Image to DockerHub
+      - name: 🐳 Push Backend Image
+        run: |
+          docker tag backend-api ${{ secrets.DOCKER_USERNAME }}/backend-api:latest
+          docker push ${{ secrets.DOCKER_USERNAME }}/backend-api:latest
+
+      # 🐳 STEP 3: Push Frontend Image to DockerHub
+      - name: 🐳 Push Frontend Image
+        run: |
+          docker tag frontend-ui ${{ secrets.DOCKER_USERNAME }}/frontend-ui:latest
+          docker push ${{ secrets.DOCKER_USERNAME }}/frontend-ui:latest
 
       - name: ✅ Run Docker Compose to Validate
         run: |
@@ -42,3 +53,4 @@ jobs:
 
       - name: 🧹 Tear down
         run: docker-compose down
+
