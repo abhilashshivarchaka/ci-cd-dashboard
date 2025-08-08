@@ -1,0 +1,44 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [ "dev", "main" ]
+  pull_request:
+    branches: [ "dev", "main" ]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    services:
+      docker:
+        image: docker:20.10.7
+        options: --privileged
+
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v3
+
+      - name: 🐳 Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: 🐳 Build Backend Docker Image
+        run: docker build -t backend-api ./backend
+
+      - name: 🐳 Build Frontend Docker Image
+        run: docker build -t frontend-ui ./frontend
+
+      - name: ✅ Run Docker Compose to Validate
+        run: |
+          docker-compose -f docker-compose.yml up -d
+          sleep 10
+          docker ps
+
+      - name: 📦 Run Backend Health Check
+        run: curl --fail http://localhost:8000/builds
+
+      - name: 🧪 Test Frontend Build (Optional)
+        run: docker exec $(docker ps -qf "ancestor=frontend-ui") ls /app
+
+      - name: 🧹 Tear down
+        run: docker-compose down

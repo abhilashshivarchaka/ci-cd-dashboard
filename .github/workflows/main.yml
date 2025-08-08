@@ -1,0 +1,56 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [ "dev", "main" ]
+  pull_request:
+    branches: [ "dev", "main" ]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v3
+
+      - name: 🐳 Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: 🐳 Build Backend Docker Image
+        run: docker build -t backend-api ./backend
+
+      - name: 🐳 Build Frontend Docker Image
+        run: docker build -t frontend-ui ./frontend
+
+      # 🔐 STEP 3: Login to DockerHub
+      - name: 🔐 Login to DockerHub
+        run: echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
+
+      # 🐳 STEP 3: Push Backend Image to DockerHub
+      - name: 🐳 Push Backend Image
+        run: |
+          docker tag backend-api ${{ secrets.DOCKER_USERNAME }}/backend-api:latest
+          docker push ${{ secrets.DOCKER_USERNAME }}/backend-api:latest
+
+      # 🐳 STEP 3: Push Frontend Image to DockerHub
+      - name: 🐳 Push Frontend Image
+        run: |
+          docker tag frontend-ui ${{ secrets.DOCKER_USERNAME }}/frontend-ui:latest
+          docker push ${{ secrets.DOCKER_USERNAME }}/frontend-ui:latest
+
+      - name: ✅ Run Docker Compose to Validate
+        run: |
+          docker-compose -f docker-compose.yml up -d
+          sleep 10
+          docker ps
+
+      - name: 📦 Run Backend Health Check
+        run: curl --fail http://localhost:8000/builds
+
+      - name: 🧪 Test Frontend Build (Optional)
+        run: docker exec $(docker ps -qf "ancestor=frontend-ui") ls /app
+
+      - name: 🧹 Tear down
+        run: docker-compose down
+
